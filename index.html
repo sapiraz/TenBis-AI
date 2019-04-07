@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script data-main="scripts/main" src="scripts/require.js"></script>
+    <script type="text/javascript">
+
+        function sendSMS (name){
+            var TMClient = require('textmagic-rest-client');
+
+            console.log(name);
+
+            /*    var c = new TMClient('maximparamonov', 'dIhK5GNIosHN9uJfF5pGBDOu0kNTKq');
+
+                c.Messages.send({text: 'test message from code', phones:'972523982995'}, function(err, res){
+
+                    console.log('Messages.send()', err, res);*/
+
+        }
+
+    </script>
+</head>
+<body>
+
+<style>
+
+    html {
+        background:#ce2222;
+    }
+    .video-wrap {
+        text-align: center;
+    }
+
+    .titles {
+        color:white;
+    }
+</style>
+
+<!-- Stream video via webcam -->
+<div class="video-wrap">
+    <h1 class="titles"> Ten Bis Image processing </h1>
+    <video id="video" playsinline autoplay></video>
+    <h1 class="titles" id="bag-title">
+        Processing...
+    </h1>
+</div>
+
+<!-- Webcam video snapshot -->
+<canvas id="canvas" width="640" height="480"></canvas>
+
+
+<script>
+
+    'use strict';
+    sendSMS("truman");
+
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+
+    const constraints = {
+        audio: true,
+        video: {
+            width: 1280, height: 720
+        }
+    };
+
+    // Access webcam
+    async function init() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            handleSuccess(stream);
+        } catch (e) {
+            console.log(e);
+        }
+    }
+
+    // Success
+    function handleSuccess(stream) {
+        window.stream = stream;
+        video.srcObject = stream;
+        console.log("start");
+        // start taking picture every 5 seconds
+      //   captureImageInterval(video);
+
+
+    }
+
+    // Load init
+    init();
+
+    function captureImageInterval(video) {
+        setInterval(() => {
+/*
+            var context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, 640, 480);*/
+
+            canvas.toBlob((blob) => {
+                const url =
+                    "https://westeurope.api.cognitive.microsoft.com/customvision/v3.0/Prediction/f7e429ee-9764-4ae9-961a-05110112018f/classify/iterations/Iteration28/image";
+                const predictionKey = "afb0613b7b4f4500b6b1b0e1a40b4a60";
+                fetch(url, {
+                    method: 'post',
+                    headers: {
+                        'Prediction-Key': predictionKey,
+                        'Content-Type': 'application/octet-stream'
+                    },
+                    body: blob
+                }).then(res => res.json())
+                    .then(res => {
+                        document.getElementById("bag-title").innerText = res.predictions[0].tagName;
+                        console.log("and the winner is : ", res.predictions[0].tagName);
+                        console.log("in % : ", res.predictions[0].probability);
+                    })
+            });
+
+
+        }, 5000);
+
+
+    }
+
+</script>
+</body>
