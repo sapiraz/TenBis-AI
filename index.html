@@ -114,6 +114,14 @@
         margin-top: 20px;
         margin-bottom: 20px;
     }
+    #logos_wrapper img {
+        margin: 0 2%;
+    }
+    #logos_wrapper {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+    }
 
 </style>
 
@@ -148,6 +156,7 @@
     </div>
 
     <video id="video" playsinline autoplay></video>
+    <div id="logos_wrapper"></div>
     <img id="logo" src="">
     <div id="loader" class="lds-ellipsis">
         <div></div>
@@ -162,11 +171,13 @@
 
 
 <script>
+    const SMS_ENABLED = true;
+    const INTERVAL_ENABLED = true;
+    const PROBABILITY_THRESHOLD = 60;
 
     'use strict';
 
-    let restaurants = ["gute", "la salata", "labriut", "mitzle", "oshi oshi", "piano piano", "raksalat", "truman",
-                       "zozobra"];
+    let restaurants = ["gute", "la salata", "labriut", "mitzle", "oshi oshi", "piano piano", "raksalat", "truman", "zozobra"];
 
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -195,36 +206,40 @@
         video.srcObject = stream;
         console.log("start");
         // start taking picture every 5 seconds
-        setInterval(() => {
-            captureImageInterval(video);
-        }, 5000)
-
+        if (INTERVAL_ENABLED) {
+            setInterval(() => {
+                captureImageInterval(video);
+            }, 5000);
+        }
     }
 
     // Load init
     init();
+    
+    let lastVisibleSubjects = [];
+
+    let images = {
+            truman: "truman.png",
+            ["la salata"]: "la salata.png",
+            zozobra: "zozobra.png",
+            labriut: "labriut.png",
+            mitzle: "mitzle.png",
+        };
+
 
     function captureImageInterval(video) {
         var context = canvas.getContext('2d');
         context.drawImage(video, 0, 0, 640, 480);
         flash.style.opacity = 1;
-        setTimeout(()=>{
+
+        setTimeout(() => {
             flash.style.opacity = 0;
-        },400);
-
-
-        let images = {
-            truman:"truman.png",
-            ["la salata"]:"la salata.png",
-            zozobra:"zozobra.png",
-            labriut:"labriut.png",
-        }
-
+        }, 400);
 
         canvas.toBlob((blob) => {
             const url =
-                "https://westeurope.api.cognitive.microsoft.com/customvision/v3.0/Prediction/f7e429ee-9764-4ae9-961a-05110112018f/classify/iterations/Iteration30/image";
-            const predictionKey = "afb0613b7b4f4500b6b1b0e1a40b4a60";
+                "https://westeurope.api.cognitive.microsoft.com/customvision/v3.0/Prediction/f7e429ee-9764-4ae9-961a-05110112018f/classify/iterations/Iteration37/image";
+            const predictionKey = 'afb0613b7b4f4500b6b1b0e1a40b4a60';
             fetch(url, {
                 method: 'post',
                 headers: {
@@ -234,22 +249,64 @@
                 body: blob
             }).then(res => res.json())
                 .then(res => {
-                    sendSms(res.predictions[0].tagName);
+                    let currentlyVisibleSubjects = [];
                     // in case nothing major was found show the processing text.
-                    if(Math.round(res.predictions[0].probability)){
-                        console.log(images[res.predictions[0].tagName]);
-                        document.getElementById("logo").src = images[res.predictions[0].tagName];
-                        document.getElementById("loader").classList.add("disable");
-                        console.log(document.getElementById("loader"));
-                    } else {
-                        document.getElementById("logo").src = "";
-                        document.getElementById("loader").classList.remove("disable");
-                        document.getElementById("bag-title").innerText = "This ain't a bag mister";
+                    if (res.predictions && res.predictions.length) {
+                        res.predictions.forEach(prediction => {
+                            if (prediction.probability * 100 >= PROBABILITY_THRESHOLD) {
+                                if (SMS_ENABLED) {
+                                    sendSms(prediction.tagName);
+                                }
+                                currentlyVisibleSubjects.push(prediction.tagName);
+                            }
+                        });
+                        updateDomLogos(lastVisibleSubjects, currentlyVisibleSubjects);
+                        lastVisibleSubjects = currentlyVisibleSubjects;
                     }
-                })
+                    // if(Math.round(res.predictions[0].probability)){
+                    //     if (SMS_ENABLED) {
+                    //         sendSms(res.predictions[0].tagName);
+                    //     }
+                    //     console.log(images[res.predictions[0].tagName]);
+                    //     document.getElementById("logo").src = images[res.predictions[0].tagName];
+                    //     document.getElementById("loader").classList.add("disable");
+                    //     console.log(document.getElementById("loader"));
+                    // } else {
+                    //     document.getElementById("logo").src = "";
+                    //     document.getElementById("loader").classList.remove("disable");
+                    //     document.getElementById("bag-title").innerText = "This ain't a bag mister";
+                    // }
+                });
         });
-
     }
+
+    function updateDomLogos(previous, current) {
+        const logoWrapper = document.getElementById('logos_wrapper');
+        logoWrapper.innerHTML = '';
+        if (current.length) {
+            setLoaderVisibility(false);
+            current.forEach(subject => {
+                let element = document.createElement('img');
+                element.src = images[subject];
+                logoWrapper.appendChild(element);
+            });
+        }
+        else {
+            setLoaderVisibility(true);
+        }
+    }
+
+    function setLoaderVisibility(visible) {
+        const loader = document.getElementById("loader");
+        if (visible) {
+            loader.classList.remove("disable");
+        }
+        else {
+            loader.classList.add("disable");
+        }
+    }
+    
+    let alreadySent = [];
 
     function sendSms(brand) {
         let phoneNumber;
@@ -268,17 +325,28 @@
                 break;
         }
 
-        var index = restaurants.indexOf(5);
-        if (index > -1) {
-            restaurants.splice(index, 1); // remove restaurants we already found
-            const message = "Your order is here: " + brand;
-            let url =
+        let brandTranslations = {
+            truman: "Truman",
+            zozobra: "Zozobra",
+            labriut: "Labriut",
+            'la salata': "La Salata"
+        };
+
+        let brandName = brandTranslations[brand] || brand;
+        let phoneNumberIndex = alreadySent.indexOf(phoneNumber);
+
+        if (phoneNumberIndex === -1) {
+            console.log('Sending message for', brandName);
+            alreadySent.push(phoneNumber);
+            const message = `Your order from ${brandName} had just arrived!`;
+            const url =
                 `https://10bissmshackathon.azurewebsites.net/api/HttpTrigger1?code=6tGjrvUOetrVD5UtyAFe/oCkRxEc6GrE0f/GbEDqyNyK3g4kGsACyQ==&phone=${phoneNumber}&text=${message}`;
 
-            fetch(url).then(res => res.json())
+            fetch(url)
                 .then(res => {
-                    console.log(res);
-                }).catch(e => console.log(e));
+                    console.log('SMS Response:', res);
+                })
+                .catch(e => console.log('SMS Error', e));
         }
     }
 
