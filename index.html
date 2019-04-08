@@ -171,11 +171,14 @@
 
 
 <script>
-    const SMS_ENABLED = true;
+    'use strict';
+
+    // General Configurations
+    const SMS_ENABLED = false;
     const INTERVAL_ENABLED = true;
     const PROBABILITY_THRESHOLD = 60;
-
-    'use strict';
+    const PREDICTION_URL = 'https://westeurope.api.cognitive.microsoft.com/customvision/v3.0/Prediction/f7e429ee-9764-4ae9-961a-05110112018f/classify/iterations/Iteration38/image';
+    const PREDICTION_KEY = 'afb0613b7b4f4500b6b1b0e1a40b4a60';
 
     let restaurants = ["gute", "la salata", "labriut", "mitzle", "oshi oshi", "piano piano", "raksalat", "truman", "zozobra"];
 
@@ -237,9 +240,8 @@
         }, 400);
 
         canvas.toBlob((blob) => {
-            const url =
-                "https://westeurope.api.cognitive.microsoft.com/customvision/v3.0/Prediction/f7e429ee-9764-4ae9-961a-05110112018f/classify/iterations/Iteration37/image";
-            const predictionKey = 'afb0613b7b4f4500b6b1b0e1a40b4a60';
+            const url = PREDICTION_URL;
+            const predictionKey = PREDICTION_KEY;
             fetch(url, {
                 method: 'post',
                 headers: {
